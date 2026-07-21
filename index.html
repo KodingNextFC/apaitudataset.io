@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datasets, CSV Files &amp; DataFrames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF3FA;
+    --surface:#FFFFFF;
+    --surface-2:#F3F6FC;
+    --ink:#202840;
+    --ink-muted:#5B6479;
+    --ink-faint:#8B93A6;
+    --border:rgba(32,40,64,0.12);
+    --border-strong:rgba(32,40,64,0.22);
+    --teal:#1F8A70; --teal-bg:#DCF0EA; --teal-ink:#14624F;
+    --coral:#C0392B; --coral-bg:#FBE4DA; --coral-ink:#7A2016;
+    --amber:#C9891A; --amber-bg:#FBEBD4; --amber-ink:#8A5A16;
+    --blue:#2F7BD9; --blue-bg:#E3EEF8; --blue-ink:#1F5FB0;
+    --purple:#7B52C7; --purple-bg:#EEE6FA; --purple-ink:#5A3894;
+    --mono:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    --sans:'Inter', -apple-system, 'Segoe UI', sans-serif;
+    --display:'Baloo 2', cursive;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans); background:var(--bg); color:var(--ink);
+    line-height:1.55; height:100vh; height:100dvh; overflow:hidden;
+  }
+  #app{ position:relative; max-width:760px; margin:0 auto; height:100%; overflow:hidden; }
+
+  #dots{ position:absolute; top:14px; left:0; right:0; display:flex; justify-content:center; gap:7px; z-index:30; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--border-strong); transition:all .25s ease; }
+  .dot.active{ width:20px; border-radius:4px; background:var(--blue); }
+  .dot.done{ background:#9FC3E0; }
+
+  .page{
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column;
+    padding:46px 20px 90px;
+    visibility:hidden; opacity:0; transform:translateX(24px);
+    transition:opacity .35s ease, transform .35s ease;
+    overflow-y:auto;
+  }
+  .page.active{ visibility:visible; opacity:1; transform:translateX(0); z-index:5; }
+
+  .kicker{
+    font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--blue-ink); margin-bottom:8px; font-weight:600; text-align:center;
+  }
+  h1{ font-family:var(--display); font-size:24px; margin:0 0 10px; text-align:center; }
+  h2{ font-size:16px; font-weight:700; margin:18px 0 8px; }
+  p{ font-size:14px; color:var(--ink-muted); margin:0 0 10px; }
+  .lead{ font-size:14.5px; color:var(--ink-muted); text-align:center; max-width:520px; margin:0 auto 18px; }
+  code.inline{
+    font-family:var(--mono); background:var(--blue-bg); color:var(--blue-ink);
+    padding:2px 6px; border-radius:5px; font-size:13px;
+  }
+
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; box-shadow:0 4px 14px rgba(32,40,64,0.06); margin-bottom:14px;
+  }
+
+  /* ---------- scene 1: dataset table ---------- */
+  .instruction-badge{
+    display:block; text-align:center; font-family:var(--mono); font-size:11.5px;
+    background:var(--amber-bg); color:var(--amber-ink); border-radius:999px;
+    padding:6px 14px; margin:0 auto 14px; width:fit-content;
+  }
+  table.ds-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.ds-table th, table.ds-table td{
+    border:1px solid var(--border); padding:9px 10px; text-align:left; cursor:pointer;
+    transition:background .2s ease;
+  }
+  table.ds-table th{
+    font-family:var(--mono); font-size:11.5px; background:var(--surface-2); color:var(--ink-muted);
+    text-transform:uppercase;
+  }
+  table.ds-table th.col-hot{ background:var(--blue); color:#fff; }
+  table.ds-table td.col-hot{ background:var(--blue-bg); }
+  table.ds-table tr.row-hot td{ background:var(--teal-bg); }
+  table.ds-table th.label-col{ position:relative; }
+  .label-chip{
+    display:inline-block; font-family:var(--mono); font-size:8.5px; font-weight:700;
+    background:var(--purple); color:#fff; border-radius:999px; padding:1px 6px; margin-left:4px;
+  }
+  #dsExplain{
+    min-height:44px; margin-top:12px; font-size:13.5px; text-align:center;
+    background:var(--surface-2); border-radius:10px; padding:10px 14px; color:var(--ink-muted);
+  }
+  #dsExplain b{ color:var(--ink); }
+
+  /* ---------- scene 2: CSV ---------- */
+  .csv-block{
+    font-family:var(--mono); font-size:12.5px; background:#1E2733; color:#E6EDF5;
+    border-radius:10px; padding:14px 16px; line-height:1.8; overflow-x:auto; white-space:pre;
+  }
+  .csv-comma{ color:#F2994A; font-weight:700; }
+  .action-row{ display:flex; gap:10px; justify-content:center; margin:14px 0; flex-wrap:wrap; }
+  .btn{
+    font-family:var(--sans); font-weight:700; font-size:13px;
+    border:none; border-radius:999px; padding:10px 20px; cursor:pointer;
+  }
+  .btn.primary{ background:var(--blue); color:#fff; }
+  .btn.primary:hover{ background:var(--blue-ink); }
+  .btn.secondary{ background:var(--surface-2); color:var(--ink); border:1px solid var(--border-strong); }
+  .btn.secondary:hover{ background:var(--blue-bg); }
+  .why-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .why-item{
+    font-size:12.5px; background:var(--surface-2); border-radius:10px; padding:8px 10px;
+    display:flex; align-items:center; gap:6px;
+  }
+  #csvTableWrap{ display:none; margin-top:14px; }
+  #csvTableWrap.show{ display:block; animation:fadeUp .5s ease; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- scene 3: DataFrame flow ---------- */
+  .flow-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:18px 0; flex-wrap:wrap; }
+  .flow-box{
+    background:var(--surface-2); border:2px solid var(--border-strong); border-radius:12px;
+    padding:14px 16px; text-align:center; min-width:120px;
+  }
+  .flow-box .fbicon{ font-size:26px; }
+  .flow-box .fblabel{ font-family:var(--mono); font-size:11px; font-weight:700; margin-top:4px; }
+  .flow-arrow{ font-size:20px; color:var(--blue); }
+  .code-block{
+    font-family:var(--mono); font-size:12.5px; background:#1E2733; color:#E6EDF5;
+    border-radius:10px; padding:14px 16px; line-height:1.8;
+  }
+  .code-block .kw{ color:#F2994A; } .code-block .fn{ color:#7DC4FF; } .code-block .str{ color:#9FE39F; } .code-block .cm{ color:#7A8699; }
+  #runBtn{ display:block; margin:12px auto 0; }
+  #dfResult{ display:none; margin-top:14px; }
+  #dfResult.show{ display:block; animation:fadeUp .5s ease; }
+
+  /* ---------- scene 4: flip cards ---------- */
+  .flip-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:6px; }
+  .flip-card{ perspective:1000px; height:150px; cursor:pointer; }
+  .flip-inner{
+    position:relative; width:100%; height:100%; text-align:center;
+    transition:transform .5s; transform-style:preserve-3d;
+  }
+  .flip-card.flipped .flip-inner{ transform:rotateY(180deg); }
+  .flip-front, .flip-back{
+    position:absolute; inset:0; backface-visibility:hidden; border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px;
+  }
+  .flip-front{ background:var(--blue); color:#fff; }
+  .flip-front .ffemoji{ font-size:26px; margin-bottom:4px; }
+  .flip-front .fflabel{ font-family:var(--mono); font-weight:700; font-size:13px; }
+  .flip-back{
+    background:var(--surface-2); border:1px solid var(--border-strong);
+    transform:rotateY(180deg); font-size:11px; color:var(--ink-muted); line-height:1.4;
+  }
+  .flip-back b{ color:var(--ink); font-size:11.5px; }
+  .flip-hint{ text-align:center; font-family:var(--mono); font-size:11px; color:var(--ink-faint); margin-top:10px; }
+
+  /* ---------- scene 5: quiz ---------- */
+  .quiz-card{ margin-bottom:14px; }
+  .quiz-q{ font-weight:700; font-size:14px; margin-bottom:10px; }
+  .quiz-opts{ display:flex; flex-direction:column; gap:8px; }
+  .quiz-opt{
+    font-family:var(--sans); font-size:13.5px; text-align:left;
+    background:var(--surface-2); border:2px solid var(--border-strong); border-radius:10px;
+    padding:10px 14px; cursor:pointer; color:var(--ink);
+  }
+  .quiz-opt:hover:not(:disabled){ border-color:var(--blue); background:var(--blue-bg); }
+  .quiz-opt.correct{ background:var(--teal-bg); border-color:var(--teal); color:var(--teal-ink); font-weight:600; }
+  .quiz-opt.incorrect{ background:var(--coral-bg); border-color:var(--coral); color:var(--coral-ink); }
+  .quiz-opt:disabled{ cursor:default; }
+  #quizScore{
+    text-align:center; font-family:var(--mono); font-weight:700; font-size:14px;
+    margin-top:8px; color:var(--blue-ink); display:none;
+  }
+  #quizScore.show{ display:block; }
+
+  /* ---------- nav controls ---------- */
+  #controls{
+    position:absolute; bottom:18px; left:0; right:0;
+    display:flex; justify-content:center; align-items:center; gap:16px; z-index:30;
+  }
+  .navbtn{
+    width:46px; height:46px; border-radius:50%; background:#fff;
+    border:2px solid var(--border); box-shadow:0 4px 12px rgba(32,40,64,0.12);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .navbtn:disabled{ opacity:.35; cursor:not-allowed; }
+  .navbtn.primary{ background:var(--blue); border-color:var(--blue); }
+
+  @media (max-width:520px){
+    .flip-grid{ grid-template-columns:1fr; }
+    .flip-card{ height:110px; }
+    table.ds-table{ font-size:11.5px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="dots"></div>
+
+  <!-- HALAMAN 0: PEMBUKA -->
+<div class="page active" id="p0">
+  <div class="kicker">Dasar-Dasar Data</div>
+  <h1>Dataset, File CSV, &amp; DataFrame</h1>
+  <p class="lead">Sebelum model machine learning dapat mempelajari apa pun, model tersebut membutuhkan data sebagai sumber pembelajaran. Pada materi ini, kamu akan mempelajari tiga istilah yang sangat sering digunakan: <strong>dataset</strong>, <strong>file CSV</strong>, dan <strong>DataFrame</strong>, serta bagaimana ketiganya saling berhubungan.</p>
+  <div class="card">
+    <p style="margin:0; text-align:center; font-size:13.5px;">👉 Gunakan tombol panah di bawah untuk berpindah halaman. Beberapa halaman bersifat interaktif — cari bagian yang bisa diklik!</p>
+  </div>
+</div>
+
+<!-- HALAMAN 1: DATASET -->
+<div class="page" id="p1">
+  <div class="kicker">1. Apa Itu Dataset?</div>
+  <h1 style="font-size:19px;">Kumpulan Data yang Saling Berkaitan</h1>
+  <p>Dataset adalah kumpulan data yang saling berkaitan dan disusun dalam bentuk baris dan kolom. Dataset berisi informasi yang digunakan oleh model machine learning untuk mempelajari pola dan membuat prediksi.</p>
+
+  <div class="card">
+    <span class="instruction-badge">👆 Klik salah satu baris atau nama kolom untuk mempelajarinya</span>
+
+    <table class="ds-table" id="dsTable">
+      <thead>
+        <tr>
+          <th data-col="0">Nama</th>
+          <th data-col="1">Usia</th>
+          <th data-col="2">Jam Belajar</th>
+          <th data-col="3" class="label-col">Lulus<span class="label-chip">label?</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-row="0">
+          <td data-col="0">Alice</td>
+          <td data-col="1">18</td>
+          <td data-col="2">5</td>
+          <td data-col="3">Ya</td>
+        </tr>
+        <tr data-row="1">
+          <td data-col="0">Bob</td>
+          <td data-col="1">19</td>
+          <td data-col="2">2</td>
+          <td data-col="3">Tidak</td>
+        </tr>
+        <tr data-row="2">
+          <td data-col="0">Charlie</td>
+          <td data-col="1">18</td>
+          <td data-col="2">4</td>
+          <td data-col="3">Ya</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div id="dsExplain">Klik salah satu baris atau kolom untuk melihat penjelasannya.</div>
+  </div>
+</div>
+
+<!-- HALAMAN 2: CSV -->
+<div class="page" id="p2">
+  <div class="kicker">2. Apa Itu File CSV?</div>
+  <h1 style="font-size:19px;">Comma-Separated Values (CSV)</h1>
+  <p>File CSV menyimpan data dalam bentuk teks biasa. Setiap baris ditulis pada baris baru, dan setiap nilai dipisahkan dengan tanda koma. CSV merupakan salah satu format yang paling umum digunakan untuk menyimpan dataset.</p>
+
+  <div class="card">
+    <div class="csv-block" id="csvRaw">Name,Age,StudyHours,Passed
+Alice,18,5,Yes
+Bob,19,2,No
+Charlie,18,4,Yes</div>
+
+    <div class="action-row">
+      <button class="btn primary" id="parseBtn">✨ Ubah Menjadi Tabel</button>
+    </div>
+
+    <div id="csvTableWrap">
+      <table class="ds-table">
+        <thead>
+          <tr>
+            <th>Nama</th>
+            <th>Usia</th>
+            <th>Jam Belajar</th>
+            <th>Lulus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Alice</td>
+            <td>18</td>
+            <td>5</td>
+            <td>Ya</td>
+          </tr>
+          <tr>
+            <td>Bob</td>
+            <td>19</td>
+            <td>2</td>
+            <td>Tidak</td>
+          </tr>
+          <tr>
+            <td>Charlie</td>
+            <td>18</td>
+            <td>4</td>
+            <td>Ya</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="text-align:center; margin-top:8px; font-size:12.5px;">
+        ✅ Setiap tanda koma menjadi pemisah kolom, dan setiap baris baru menjadi data baru.
+      </p>
+    </div>
+
+    <div class="why-grid">
+      <div class="why-item">Sederhana &amp; ringan</div>
+      <div class="why-item">Mudah dibuat dan diedit</div>
+      <div class="why-item">Kompatibel dengan Excel &amp; Google Sheets</div>
+      <div class="why-item">Didukung oleh hampir semua bahasa pemrograman</div>
+    </div>
+  </div>
+</div>
+
+<!-- HALAMAN 3: DATAFRAME -->
+<div class="page" id="p3">
+  <div class="kicker">3. Apa Itu DataFrame?</div>
+  <h1 style="font-size:19px;">Struktur Data Berbentuk Tabel di Python</h1>
+
+  <p>Ketika sebuah dataset yang tersimpan dalam file CSV dimuat ke dalam Python, data tersebut biasanya diubah menjadi <strong>DataFrame</strong>. DataFrame adalah struktur data berbentuk tabel yang memudahkan kita melihat, memfilter, dan menyiapkan data sebelum melatih model machine learning. Bayangkan seperti spreadsheet yang berada di dalam program Python.</p>
+
+  <div class="card">
+
+    <div class="flow-row">
+      <div class="flow-box">
+        <div class="fbicon">📄</div>
+        <div class="fblabel">students.csv</div>
+      </div>
+
+      <div class="flow-arrow">→</div>
+
+      <div class="flow-box">
+        <div class="fbicon">🐼</div>
+        <div class="fblabel">pandas</div>
+      </div>
+
+      <div class="flow-arrow">→</div>
+
+      <div class="flow-box">
+        <div class="fbicon">🗂️</div>
+        <div class="fblabel">DataFrame</div>
+      </div>
+    </div>
+
+    <div class="code-block"><span class="kw">import</span> pandas <span class="kw">as</span> pd
+df = pd.<span class="fn">read_csv</span>(<span class="str">"students.csv"</span>)
+df.<span class="fn">head</span>()</div>
+
+    <button class="btn primary" id="runBtn">▶ Jalankan Kode</button>
+
+    <div id="dfResult">
+      <table class="ds-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Nama</th>
+            <th>Usia</th>
+            <th>Jam Belajar</th>
+            <th>Lulus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family:var(--mono); color:var(--ink-faint);">0</td>
+            <td>Alice</td>
+            <td>18</td>
+            <td>5</td>
+            <td>Ya</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono); color:var(--ink-faint);">1</td>
+            <td>Bob</td>
+            <td>19</td>
+            <td>2</td>
+            <td>Tidak</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono); color:var(--ink-faint);">2</td>
+            <td>Charlie</td>
+            <td>18</td>
+            <td>4</td>
+            <td>Ya</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="text-align:center; margin-top:8px; font-size:12.5px;">
+        🎉 Inilah DataFrame — data yang sama seperti pada file CSV, tetapi sekarang siap digunakan dan dianalisis di Python.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- HALAMAN 4: PERBANDINGAN -->
+<div class="page" id="p4">
+  <div class="kicker">4. Perbandingan</div>
+  <h1 style="font-size:19px;">Tiga Istilah, Satu Konsep</h1>
+
+  <p class="lead">Data yang sama dapat ditampilkan dalam tiga bentuk yang berbeda. Klik setiap kartu untuk melihat penjelasannya.</p>
+
+  <div class="flip-grid" id="flipGrid">
+
+    <div class="flip-card" data-term="dataset">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="ffemoji">📊</div>
+          <div class="fflabel">Dataset</div>
+        </div>
+        <div class="flip-back">
+          <b>Konsep</b><br>
+          Kumpulan data yang saling berkaitan dan tersusun dalam bentuk baris dan kolom.
+          <br><br>
+          <b>Contoh:</b> Data siswa
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" data-term="csv">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="ffemoji">📄</div>
+          <div class="fflabel">File CSV</div>
+        </div>
+        <div class="flip-back">
+          <b>Konsep</b><br>
+          Format file yang digunakan untuk menyimpan dataset dalam bentuk teks.
+          <br><br>
+          <b>Contoh:</b> students.csv
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" data-term="df">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="ffemoji">🗂️</div>
+          <div class="fflabel">DataFrame</div>
+        </div>
+        <div class="flip-back">
+          <b>Konsep</b><br>
+          Objek berbentuk tabel di Python yang digunakan untuk melihat, menganalisis, dan mengolah dataset.
+          <br><br>
+          <b>Contoh:</b> pandas.DataFrame
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flip-hint">👆 Klik setiap kartu untuk melihat definisi dan contohnya.</div>
+</div>
+
+<!-- HALAMAN 5: KUIS -->
+<div class="page" id="p5">
+  <div class="kicker">Cek Pemahaman</div>
+  <h1 style="font-size:19px;">Uji Apa yang Baru Kamu Pelajari</h1>
+
+  <div class="card quiz-card" data-q="0">
+    <div class="quiz-q">1. Manakah yang merupakan format file untuk menyimpan data berbentuk tabel dalam teks biasa?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" data-correct="false">Dataset</button>
+      <button class="quiz-opt" data-correct="true">File CSV</button>
+      <button class="quiz-opt" data-correct="false">DataFrame</button>
+    </div>
+  </div>
+
+  <div class="card quiz-card" data-q="1">
+    <div class="quiz-q">2. Apa sebutan untuk setiap baris dalam sebuah dataset?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" data-correct="false">Kolom</button>
+      <button class="quiz-opt" data-correct="true">Record (atau sampel / observasi)</button>
+      <button class="quiz-opt" data-correct="false">Label</button>
+    </div>
+  </div>
+
+  <div class="card quiz-card" data-q="2">
+    <div class="quiz-q">3. Library Python apa yang paling sering digunakan untuk bekerja dengan DataFrame?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" data-correct="false">NumPy</button>
+      <button class="quiz-opt" data-correct="false">Matplotlib</button>
+      <button class="quiz-opt" data-correct="true">Pandas</button>
+    </div>
+  </div>
+
+  <div id="quizScore"></div>
+</div>
+
+<!-- HALAMAN 6: PENUTUP -->
+<div class="page" id="p6">
+  <div class="kicker">Kerja Bagus!</div>
+
+  <h1>🎉 Kamu Sudah Memahami Dasar-Dasarnya</h1>
+
+  <div class="card" style="text-align:center;">
+    <p style="font-size:14px; color:var(--ink);">
+      <strong>Dataset</strong> = kumpulan data<br>
+      <strong>CSV</strong> = cara data disimpan dalam file<br>
+      <strong>DataFrame</strong> = cara data digunakan dan diolah di Python
+    </p>
+
+    <p style="margin-top:10px;">
+      Selanjutnya, kita akan mempelajari cara memuat file CSV ke dalam DataFrame menggunakan <strong>pandas</strong> dan mulai mengeksplorasi datanya.
+    </p>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="navbtn" id="prevBtn" aria-label="Sebelumnya">
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <path d="M15 4l-8 8 8 8" stroke="#26313F" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  <button class="navbtn primary" id="nextBtn" aria-label="Berikutnya">
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <path d="M9 4l8 8-8 8" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+</div>
+
+</div>
+
+<script>
+(function(){
+  var order = ['p0','p1','p2','p3','p4','p5','p6'];
+  var current = 0;
+  var pages = {};
+  for (var i=0;i<order.length;i++){ pages[order[i]] = document.getElementById(order[i]); }
+
+  var dotsEl = document.getElementById('dots');
+  order.forEach(function(){
+    var d = document.createElement('div');
+    d.className = 'dot';
+    dotsEl.appendChild(d);
+  });
+  var dots = dotsEl.querySelectorAll('.dot');
+
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+
+  function render(){
+    for (var key in pages){ pages[key].className = 'page'; }
+    pages[order[current]].className = 'page active';
+    for (var i=0;i<dots.length;i++){
+      dots[i].className = 'dot';
+      if (i < current) dots[i].className = 'dot done';
+      if (i === current) dots[i].className = 'dot active';
+    }
+    prevBtn.disabled = (current === 0);
+    nextBtn.disabled = (current === order.length - 1);
+  }
+  function goNext(){ if (current < order.length - 1){ current++; render(); } }
+  function goPrev(){ if (current > 0){ current--; render(); } }
+  prevBtn.addEventListener('click', goPrev);
+  nextBtn.addEventListener('click', goNext);
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' && !nextBtn.disabled){ goNext(); }
+    if (e.key === 'ArrowLeft' && !prevBtn.disabled){ goPrev(); }
+  });
+
+  // ---------------- Scene 1: dataset table interactivity ----------------
+  var dsTable = document.getElementById('dsTable');
+  var dsExplain = document.getElementById('dsExplain');
+
+  function clearHighlights(){
+    dsTable.querySelectorAll('.row-hot').forEach(function(el){ el.classList.remove('row-hot'); });
+    dsTable.querySelectorAll('.col-hot').forEach(function(el){ el.classList.remove('col-hot'); });
+  }
+
+  dsTable.querySelectorAll('tbody tr').forEach(function(row){
+    row.addEventListener('click', function(){
+      clearHighlights();
+      row.classList.add('row-hot');
+      var name = row.querySelector('td').textContent;
+      dsExplain.innerHTML = '👉 This whole row is <b>one record</b> — everything we know about <b>' + name + '</b>.';
+    });
+  });
+
+  dsTable.querySelectorAll('th').forEach(function(th){
+    th.addEventListener('click', function(){
+      clearHighlights();
+      var colIdx = th.dataset.col;
+      dsTable.querySelectorAll('[data-col="' + colIdx + '"]').forEach(function(cell){
+        cell.classList.add('col-hot');
+      });
+      var colName = th.childNodes[0].textContent.trim();
+      var msg = '👉 This whole column is <b>one feature</b>: <b>' + colName + '</b>.';
+      if (colName === 'Passed'){
+        msg += ' This could be the <b>label (y)</b> a supervised model tries to predict!';
+      }
+      dsExplain.innerHTML = msg;
+    });
+  });
+
+  // ---------------- Scene 2: CSV parse animation ----------------
+  var parseBtn = document.getElementById('parseBtn');
+  var csvTableWrap = document.getElementById('csvTableWrap');
+  parseBtn.addEventListener('click', function(){
+    csvTableWrap.classList.add('show');
+    csvTableWrap.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  });
+
+  // ---------------- Scene 3: run code ----------------
+  var runBtn = document.getElementById('runBtn');
+  var dfResult = document.getElementById('dfResult');
+  runBtn.addEventListener('click', function(){
+    dfResult.classList.add('show');
+    dfResult.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  });
+
+  // ---------------- Scene 4: flip cards ----------------
+  document.querySelectorAll('.flip-card').forEach(function(card){
+    card.addEventListener('click', function(){
+      card.classList.toggle('flipped');
+    });
+  });
+
+  // ---------------- Scene 5: quiz ----------------
+  var quizCards = document.querySelectorAll('.quiz-card');
+  var quizScore = document.getElementById('quizScore');
+  var answered = 0, correct = 0;
+
+  quizCards.forEach(function(card){
+    var opts = card.querySelectorAll('.quiz-opt');
+    opts.forEach(function(opt){
+      opt.addEventListener('click', function(){
+        if (card.dataset.locked) return;
+        card.dataset.locked = 'true';
+        var isCorrect = opt.dataset.correct === 'true';
+        opts.forEach(function(o){ o.disabled = true; });
+        if (isCorrect){
+          opt.classList.add('correct');
+          correct++;
+        } else {
+          opt.classList.add('incorrect');
+          card.querySelector('[data-correct="true"]').classList.add('correct');
+        }
+        answered++;
+        if (answered === quizCards.length){
+          quizScore.classList.add('show');
+          quizScore.textContent = '🎯 You scored ' + correct + ' / ' + quizCards.length;
+        }
+      });
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
